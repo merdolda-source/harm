@@ -1,97 +1,67 @@
-from curl_cffi import requests # En güçlü kütüphane bu
+from curl_cffi import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import csv
 import os
 
-# TAKİP LİSTESİ (Senin listen)
-takip_listesi = [
-    {"kod": "ALTIN", "ad": "Has Altın"},
-    {"kod": "KULCEALTIN", "ad": "Gram Altın"},
-    {"kod": "ONS", "ad": "Ons Altın"},
-    {"kod": "USDKG", "ad": "Dolar/KG"},
-    {"kod": "EURKG", "ad": "Euro/KG"},
-    {"kod": "AYAR22", "ad": "22 Ayar Bilezik"},
-    {"kod": "AYAR14", "ad": "14 Ayar"},
-    {"kod": "XAUXAG", "ad": "Altın/Gümüş Rasyo"},
-    {"kod": "GUMUSTRY", "ad": "Gümüş TL"},
-    {"kod": "GUMUSUSD", "ad": "Gümüş USD"},
-    {"kod": "XAGUSD", "ad": "Silver USD (Ons)"},
-    {"kod": "PLATIN", "ad": "Platin"},
-    {"kod": "XPTUSD", "ad": "Platin USD"},
-    {"kod": "PALADYUM", "ad": "Paladyum"},
-    {"kod": "XPDUSD", "ad": "Paladyum USD"},
-    {"kod": "CEYREK_YENI", "ad": "Yeni Çeyrek"},
-    {"kod": "YARIM_YENI", "ad": "Yeni Yarım"},
-    {"kod": "TEK_YENI", "ad": "Yeni Tam"},
-    {"kod": "ATA_YENI", "ad": "Yeni Ata"},
-    {"kod": "ATA5_YENI", "ad": "Yeni Ata 5"},
-    {"kod": "GREMESE_YENI", "ad": "Yeni Gremese"},
-    {"kod": "CEYREK_ESKI", "ad": "Eski Çeyrek"},
-    {"kod": "YARIM_ESKI", "ad": "Eski Yarım"},
-    {"kod": "TEK_ESKI", "ad": "Eski Tam"},
-    {"kod": "ATA_ESKI", "ad": "Eski Ata"},
-    {"kod": "ATA5_ESKI", "ad": "Eski Ata 5"},
-    {"kod": "GREMESE_ESKI", "ad": "Eski Gremese"},
-    {"kod": "USDTRY", "ad": "Dolar/TL"},
-    {"kod": "EURTRY", "ad": "Euro/TL"},
-    {"kod": "EURUSD", "ad": "Euro/Dolar"},
-    {"kod": "GBPTRY", "ad": "Sterlin/TL"},
-    {"kod": "CHFTRY", "ad": "İsviçre Frangı"},
-    {"kod": "AUDTRY", "ad": "Avustralya Doları"},
-    {"kod": "CADTRY", "ad": "Kanada Doları"},
-    {"kod": "SARTRY", "ad": "Suudi Riyali"},
-    {"kod": "JPYTRY", "ad": "Japon Yeni"},
-]
-
-dosya_adi = "altin_fiyatlari.csv"
-url = "https://www.haremaltin.com/?lang=es"
+# Yeni URL
+url = "https://canlipiyasalar.haremaltin.com/"
+dosya_adi = "canli_piyasa.csv"
 
 def veri_cek():
-    if not os.path.exists(dosya_adi):
-        with open(dosya_adi, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Tarih", "Grup", "Kod", "Alış", "Satış"])
-
     try:
-        # SİHİRLİ KISIM BURASI: Gerçek bir Chrome tarayıcısı taklidi yapıyoruz
+        # Chrome taklidi yaparak siteye giriyoruz
         response = requests.get(url, impersonate="chrome110", timeout=20)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
-            tarih = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            kayit_sayisi = 0
-
-            with open(dosya_adi, mode='a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
+            
+            # Senin verdiğin özel div sınıfını arıyoruz
+            list_table = soup.find("div", class_="list-table")
+            
+            if list_table:
+                # Div'in içindeki tabloyu bul
+                table = list_table.find("table")
                 
-                for urun in takip_listesi:
-                    kod = urun["kod"]
-                    ad = urun["ad"]
+                if table:
+                    rows = table.find_all("tr")
+                    tarih = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
-                    # 1. YÖNTEM
-                    alis_id = f"alis__{kod}"
-                    satis_id = f"satis__{kod}"
+                    # Dosyayı yazma modu (Varsa üzerine ekle)
+                    dosya_var_mi = os.path.exists(dosya_adi)
                     
-                    alis_element = soup.find("span", id=alis_id)
-                    satis_element = soup.find("span", id=satis_id)
-
-                    # 2. YÖNTEM
-                    if not alis_element:
-                         alis_element = soup.find("span", id=f"alis__genel__{kod}")
-                         satis_element = soup.find("span", id=f"satis__genel__{kod}")
-
-                    alis_fiyat = alis_element.get_text(strip=True) if alis_element else "Bulunamadı"
-                    satis_fiyat = satis_element.get_text(strip=True) if satis_element else "Bulunamadı"
-                    
-                    writer.writerow([tarih, ad, kod, alis_fiyat, satis_fiyat])
-                    kayit_sayisi += 1
-            
-            print(f"MUTLU SON: {kayit_sayisi} veri başarıyla çekildi.")
-            
+                    with open(dosya_adi, mode='a', newline='', encoding='utf-8') as f:
+                        writer = csv.writer(f)
+                        
+                        # Eğer dosya yeni oluşuyorsa başlıkları ekle
+                        if not dosya_var_mi:
+                            # Tablonun başlıklarını (th) otomatik bul
+                            basliklar = ["Tarih"] + [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
+                            writer.writerow(basliklar)
+                        
+                        # Satırları (td) tek tek gez ve kaydet
+                        veri_sayisi = 0
+                        # İlk satır başlık olduğu için 1. indexten başlıyoruz
+                        for row in rows[1:]:
+                            cols = row.find_all("td")
+                            # Sütunları temizleyip listeye çevir
+                            data = [ele.get_text(strip=True) for ele in cols]
+                            
+                            if data: # Boş satır değilse yaz
+                                writer.writerow([tarih] + data)
+                                veri_sayisi += 1
+                                
+                    print(f"BAŞARILI: {veri_sayisi} satır veri çekildi ve '{dosya_adi}' dosyasına kaydedildi.")
+                else:
+                    print("HATA: 'list-table' bulundu ama içinde 'table' yok.")
+            else:
+                print("HATA: 'list-table' sınıfına sahip div bulunamadı.")
+                # Site içeriğini kontrol için (Debug)
+                # print(soup.prettify()[:1000]) 
+                
         else:
-            print(f"HATA: Site yine engelledi. Kod: {response.status_code}")
-            
+            print(f"HATA: Siteye girilemedi. Durum Kodu: {response.status_code}")
+
     except Exception as e:
         print(f"Bir hata oluştu: {e}")
 
