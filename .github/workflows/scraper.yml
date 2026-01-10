@@ -22,16 +22,14 @@ jobs:
       - name: Python Kurulumu
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10' # SeleniumBase için 3.10 daha stabildir
+          python-version: '3.10'
 
-      # ÖNEMLİ: SeleniumBase ve sanal ekran (xvfb) kurulumu
       - name: Kütüphaneleri ve Tarayıcıyı Yükle
         run: |
           sudo apt-get install xvfb
           pip install seleniumbase beautifulsoup4
           seleniumbase install chromedriver
 
-      # xvfb-run komutu, GitHub sunucusunda sanki ekran varmış gibi davranır
       - name: Python Kodunu Çalıştır
         run: xvfb-run python main.py
 
@@ -40,4 +38,4 @@ jobs:
           git config --global user.name 'GitHub Action Bot'
           git config --global user.email 'action@github.com'
           git add .
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Canlı veri güncellendi" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Ana sayfa verisi güncellendi" && git push)
