@@ -1,0 +1,39 @@
+name: Harem Altın Veri Çekici
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 */1 * * *' # Her saat başı çalışır (UTC saatiyle)
+  workflow_dispatch: # Manuel çalıştırma butonu ekler
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodları Çek (Checkout)
+        uses: actions/checkout@v3
+
+      - name: Python Kurulumu
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Kütüphaneleri Yükle
+        run: |
+          pip install -r requirements.txt
+
+      - name: Python Kodunu Çalıştır
+        run: python main.py
+
+      - name: Veriyi Kaydet ve Gönder (Commit & Push)
+        run: |
+          git config --global user.name 'GitHub Action Bot'
+          git config --global user.email 'action@github.com'
+          git add altin_fiyatlari.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Otomatik veri güncellendi" && git push)
