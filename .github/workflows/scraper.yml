@@ -1,4 +1,4 @@
-name: Harem Altın Veri Çekici
+name: Harem Altın Mobil API Çekici
 
 on:
   push:
@@ -16,26 +16,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Kodları Çek (Checkout)
+      - name: Kodları Çek
         uses: actions/checkout@v3
 
       - name: Python Kurulumu
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.9'
 
-      - name: Kütüphaneleri ve Tarayıcıyı Yükle
-        run: |
-          sudo apt-get install xvfb
-          pip install seleniumbase beautifulsoup4
-          seleniumbase install chromedriver
+      # Sadece requests yeterli
+      - name: Kütüphaneleri Yükle
+        run: pip install requests
 
-      - name: Python Kodunu Çalıştır
-        run: xvfb-run python main.py
+      - name: Kodu Çalıştır
+        run: python main.py
 
-      - name: Veriyi Kaydet ve Gönder
+      - name: Kaydet ve Gönder
         run: |
           git config --global user.name 'GitHub Action Bot'
           git config --global user.email 'action@github.com'
           git add .
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Ana sayfa verisi güncellendi" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Mobil veri güncellendi" && git push)
