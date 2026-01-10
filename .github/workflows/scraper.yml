@@ -24,9 +24,8 @@ jobs:
         with:
           python-version: '3.9'
 
-      # DÜZELTME BURADA YAPILDI:
-      - name: Kütüphaneleri Yükle
-        run: pip install cloudscraper beautifulsoup4
+- name: Kütüphaneleri Yükle
+        run: pip install curl_cffi beautifulsoup4
 
       - name: Python Kodunu Çalıştır
         run: python main.py
