@@ -6,7 +6,7 @@ on:
       - main
   schedule:
     - cron: '0 */1 * * *' # Her saat başı çalışır
-  workflow_dispatch: # Manuel çalıştırma butonu
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      # DÜZELTME BURADA: curl_cffi kütüphanesini yüklüyoruz
+      # curl_cffi YÜKLÜ OLMALI
       - name: Kütüphaneleri Yükle
         run: pip install curl_cffi beautifulsoup4
 
@@ -36,5 +36,4 @@ jobs:
           git config --global user.name 'GitHub Action Bot'
           git config --global user.email 'action@github.com'
           git add .
-          # Değişiklik varsa kaydet ve gönder, yoksa hata verme
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Otomatik veri güncellendi" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Canlı piyasa verisi güncellendi" && git push)
