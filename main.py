@@ -1,12 +1,11 @@
-import cloudscraper # Requests yerine bunu kullanıyoruz
+from curl_cffi import requests # En güçlü kütüphane bu
 from bs4 import BeautifulSoup
 from datetime import datetime
 import csv
 import os
 
-# TAKİP LİSTESİ
+# TAKİP LİSTESİ (Senin listen)
 takip_listesi = [
-    # --- ALTIN & GÜMÜŞ ---
     {"kod": "ALTIN", "ad": "Has Altın"},
     {"kod": "KULCEALTIN", "ad": "Gram Altın"},
     {"kod": "ONS", "ad": "Ons Altın"},
@@ -22,24 +21,18 @@ takip_listesi = [
     {"kod": "XPTUSD", "ad": "Platin USD"},
     {"kod": "PALADYUM", "ad": "Paladyum"},
     {"kod": "XPDUSD", "ad": "Paladyum USD"},
-    
-    # --- Ziynet / Sarrafiye (YENİ) ---
     {"kod": "CEYREK_YENI", "ad": "Yeni Çeyrek"},
     {"kod": "YARIM_YENI", "ad": "Yeni Yarım"},
     {"kod": "TEK_YENI", "ad": "Yeni Tam"},
     {"kod": "ATA_YENI", "ad": "Yeni Ata"},
     {"kod": "ATA5_YENI", "ad": "Yeni Ata 5"},
     {"kod": "GREMESE_YENI", "ad": "Yeni Gremese"},
-
-    # --- Ziynet / Sarrafiye (ESKİ) ---
     {"kod": "CEYREK_ESKI", "ad": "Eski Çeyrek"},
     {"kod": "YARIM_ESKI", "ad": "Eski Yarım"},
     {"kod": "TEK_ESKI", "ad": "Eski Tam"},
     {"kod": "ATA_ESKI", "ad": "Eski Ata"},
     {"kod": "ATA5_ESKI", "ad": "Eski Ata 5"},
     {"kod": "GREMESE_ESKI", "ad": "Eski Gremese"},
-
-    # --- DÖVİZ ---
     {"kod": "USDTRY", "ad": "Dolar/TL"},
     {"kod": "EURTRY", "ad": "Euro/TL"},
     {"kod": "EURUSD", "ad": "Euro/Dolar"},
@@ -55,16 +48,14 @@ dosya_adi = "altin_fiyatlari.csv"
 url = "https://www.haremaltin.com/?lang=es"
 
 def veri_cek():
-    # Dosya yoksa başlıkları oluştur
     if not os.path.exists(dosya_adi):
         with open(dosya_adi, mode='w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(["Tarih", "Grup", "Kod", "Alış", "Satış"])
 
     try:
-        # Cloudscraper ile bir tarayıcı oturumu oluşturuyoruz
-        scraper = cloudscraper.create_scraper() 
-        response = scraper.get(url) # requests.get yerine bunu kullanıyoruz
+        # SİHİRLİ KISIM BURASI: Gerçek bir Chrome tarayıcısı taklidi yapıyoruz
+        response = requests.get(url, impersonate="chrome110", timeout=20)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
@@ -85,7 +76,7 @@ def veri_cek():
                     alis_element = soup.find("span", id=alis_id)
                     satis_element = soup.find("span", id=satis_id)
 
-                    # 2. YÖNTEM (Yedek)
+                    # 2. YÖNTEM
                     if not alis_element:
                          alis_element = soup.find("span", id=f"alis__genel__{kod}")
                          satis_element = soup.find("span", id=f"satis__genel__{kod}")
@@ -96,7 +87,7 @@ def veri_cek():
                     writer.writerow([tarih, ad, kod, alis_fiyat, satis_fiyat])
                     kayit_sayisi += 1
             
-            print(f"BAŞARILI: {kayit_sayisi} veri çekildi.")
+            print(f"MUTLU SON: {kayit_sayisi} veri başarıyla çekildi.")
             
         else:
             print(f"HATA: Site yine engelledi. Kod: {response.status_code}")
