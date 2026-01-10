@@ -1,10 +1,10 @@
-import requests
+import cloudscraper # Requests yerine bunu kullanıyoruz
 from bs4 import BeautifulSoup
 from datetime import datetime
 import csv
 import os
 
-# TAKİP LİSTESİ: Gönderdiğin HTML'deki tüm ürünler
+# TAKİP LİSTESİ
 takip_listesi = [
     # --- ALTIN & GÜMÜŞ ---
     {"kod": "ALTIN", "ad": "Has Altın"},
@@ -53,9 +53,6 @@ takip_listesi = [
 
 dosya_adi = "altin_fiyatlari.csv"
 url = "https://www.haremaltin.com/?lang=es"
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
 
 def veri_cek():
     # Dosya yoksa başlıkları oluştur
@@ -65,7 +62,10 @@ def veri_cek():
             writer.writerow(["Tarih", "Grup", "Kod", "Alış", "Satış"])
 
     try:
-        response = requests.get(url, headers=headers, timeout=20)
+        # Cloudscraper ile bir tarayıcı oturumu oluşturuyoruz
+        scraper = cloudscraper.create_scraper() 
+        response = scraper.get(url) # requests.get yerine bunu kullanıyoruz
+        
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
             tarih = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,32 +78,31 @@ def veri_cek():
                     kod = urun["kod"]
                     ad = urun["ad"]
                     
-                    # 1. YÖNTEM: Standart Tablo ID'si (alis__CODE)
+                    # 1. YÖNTEM
                     alis_id = f"alis__{kod}"
                     satis_id = f"satis__{kod}"
                     
                     alis_element = soup.find("span", id=alis_id)
                     satis_element = soup.find("span", id=satis_id)
 
-                    # 2. YÖNTEM: Eğer bulunamazsa 'Genel' tablo ID'sine bak (alis__genel__CODE)
+                    # 2. YÖNTEM (Yedek)
                     if not alis_element:
                          alis_element = soup.find("span", id=f"alis__genel__{kod}")
                          satis_element = soup.find("span", id=f"satis__genel__{kod}")
 
-                    # Veriyi çek
                     alis_fiyat = alis_element.get_text(strip=True) if alis_element else "Bulunamadı"
                     satis_fiyat = satis_element.get_text(strip=True) if satis_element else "Bulunamadı"
                     
                     writer.writerow([tarih, ad, kod, alis_fiyat, satis_fiyat])
                     kayit_sayisi += 1
             
-            print(f"{kayit_sayisi} adet veri tarandı ve kaydedildi.")
+            print(f"BAŞARILI: {kayit_sayisi} veri çekildi.")
             
         else:
-            print(f"Siteye erişilemedi. Hata Kodu: {response.status_code}")
+            print(f"HATA: Site yine engelledi. Kod: {response.status_code}")
             
     except Exception as e:
-        print(f"Hata oluştu: {e}")
+        print(f"Bir hata oluştu: {e}")
 
 if __name__ == "__main__":
     veri_cek()
