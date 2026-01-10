@@ -1,69 +1,71 @@
-from curl_cffi import requests
+from seleniumbase import SB
 from bs4 import BeautifulSoup
 from datetime import datetime
 import csv
 import os
+import time
 
-# Yeni URL
 url = "https://canlipiyasalar.haremaltin.com/"
 dosya_adi = "canli_piyasa.csv"
 
 def veri_cek():
-    try:
-        # Chrome taklidi yaparak siteye giriyoruz
-        response = requests.get(url, impersonate="chrome110", timeout=20)
+    # UC=True modu Cloudflare'i "Ben insanım" diye kandırır
+    with SB(uc=True, test=True, headless=False) as sb: 
         
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
+        print("Siteye gizli modda gidiliyor...")
+        try:
+            # Cloudflare kontrolü için özel bağlantı
+            sb.uc_open_with_reconnect(url, 6) 
             
-            # Senin verdiğin özel div sınıfını arıyoruz
+            # Eğer ekranda 'Robot musun' kutucuğu varsa tıkla
+            sb.uc_gui_click_captcha() 
+            
+            print("Tablo yüklenmesi bekleniyor...")
+            # Tablonun yüklenmesi için 20 saniye mühlet veriyoruz
+            sb.assert_element("div.list-table", timeout=20)
+            
+            # Sayfanın yüklenmiş son halini alıyoruz
+            page_source = sb.get_page_source()
+            soup = BeautifulSoup(page_source, "html.parser")
+            
             list_table = soup.find("div", class_="list-table")
             
             if list_table:
-                # Div'in içindeki tabloyu bul
                 table = list_table.find("table")
-                
                 if table:
                     rows = table.find_all("tr")
                     tarih = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
-                    # Dosyayı yazma modu (Varsa üzerine ekle)
                     dosya_var_mi = os.path.exists(dosya_adi)
                     
                     with open(dosya_adi, mode='a', newline='', encoding='utf-8') as f:
                         writer = csv.writer(f)
                         
-                        # Eğer dosya yeni oluşuyorsa başlıkları ekle
+                        # Dosya yoksa başlıkları ekle
                         if not dosya_var_mi:
-                            # Tablonun başlıklarını (th) otomatik bul
                             basliklar = ["Tarih"] + [th.get_text(strip=True) for th in rows[0].find_all(["th", "td"])]
                             writer.writerow(basliklar)
                         
-                        # Satırları (td) tek tek gez ve kaydet
                         veri_sayisi = 0
-                        # İlk satır başlık olduğu için 1. indexten başlıyoruz
+                        # Verileri kaydet
                         for row in rows[1:]:
                             cols = row.find_all("td")
-                            # Sütunları temizleyip listeye çevir
                             data = [ele.get_text(strip=True) for ele in cols]
                             
-                            if data: # Boş satır değilse yaz
+                            if data:
                                 writer.writerow([tarih] + data)
                                 veri_sayisi += 1
                                 
-                    print(f"BAŞARILI: {veri_sayisi} satır veri çekildi ve '{dosya_adi}' dosyasına kaydedildi.")
+                    print(f"BAŞARILI: {veri_sayisi} satır veri çekildi.")
                 else:
-                    print("HATA: 'list-table' bulundu ama içinde 'table' yok.")
+                    print("HATA: Tablo bulundu ama içi boş.")
             else:
-                print("HATA: 'list-table' sınıfına sahip div bulunamadı.")
-                # Site içeriğini kontrol için (Debug)
-                # print(soup.prettify()[:1000]) 
+                print("HATA: Sayfa açıldı ama tablo div'i bulunamadı.")
                 
-        else:
-            print(f"HATA: Siteye girilemedi. Durum Kodu: {response.status_code}")
-
-    except Exception as e:
-        print(f"Bir hata oluştu: {e}")
+        except Exception as e:
+            print(f"Bir hata oluştu: {e}")
+            # Hata anında ekran görüntüsü alır (debug için)
+            sb.save_screenshot("hata.png")
 
 if __name__ == "__main__":
     veri_cek()
