@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 */1 * * *' # Her saat başı çalışır
+    - cron: '0 */1 * * *' # Her saat başı
   workflow_dispatch:
 
 permissions:
@@ -22,18 +22,22 @@ jobs:
       - name: Python Kurulumu
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10' # SeleniumBase için 3.10 daha stabildir
 
-      # curl_cffi YÜKLÜ OLMALI
-      - name: Kütüphaneleri Yükle
-        run: pip install curl_cffi beautifulsoup4
+      # ÖNEMLİ: SeleniumBase ve sanal ekran (xvfb) kurulumu
+      - name: Kütüphaneleri ve Tarayıcıyı Yükle
+        run: |
+          sudo apt-get install xvfb
+          pip install seleniumbase beautifulsoup4
+          seleniumbase install chromedriver
 
+      # xvfb-run komutu, GitHub sunucusunda sanki ekran varmış gibi davranır
       - name: Python Kodunu Çalıştır
-        run: python main.py
+        run: xvfb-run python main.py
 
       - name: Veriyi Kaydet ve Gönder
         run: |
           git config --global user.name 'GitHub Action Bot'
           git config --global user.email 'action@github.com'
           git add .
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Canlı piyasa verisi güncellendi" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Canlı veri güncellendi" && git push)
