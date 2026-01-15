@@ -1,39 +1,44 @@
-name: Harem Altın Mobil API Çekici
+name: Generate Android Upload Key
 
 on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: '0 */1 * * *' # Her saat başı
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  build:
+  gen:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Kodları Çek
-        uses: actions/checkout@v3
-
-      - name: Python Kurulumu
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-
-      # Sadece requests yeterli
-      - name: Kütüphaneleri Yükle
-        run: pip install requests
-
-      - name: Kodu Çalıştır
-        run: python main.py
-
-      - name: Kaydet ve Gönder
+      - name: Keystore üret ve Base64 çıktı ver
         run: |
-          git config --global user.name 'GitHub Action Bot'
-          git config --global user.email 'action@github.com'
-          git add .
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Mobil veri güncellendi" && git push)
+          set -e
+
+          # 🔐 Keystore bilgileri (istersen buradaki şifre/alias'ı değiştirirsin)
+          STORE_PASS="Erdin123!"
+          KEY_ALIAS="erdin_alias"
+          KEY_PASS="Erdin123!"  # KEY_PASS farklı olsun istersen burada değiştir
+
+          mkdir -p keystore
+
+          echo "🔐 Keystore üretiliyor..."
+          keytool -genkeypair -v \
+            -keystore keystore/erdin-upload.jks \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -alias "$KEY_ALIAS" \
+            -storepass "$STORE_PASS" \
+            -keypass "$KEY_PASS" \
+            -dname "CN=Erdin, O=ErdinMedia, C=TR"
+
+          echo ""
+          echo "================= İMZA BİLGİLERİ ================="
+          echo "ALIAS       : $KEY_ALIAS"
+          echo "STORE_PASS  : $STORE_PASS"
+          echo "KEY_PASS    : $KEY_PASS"
+          echo "==================================================="
+          echo ""
+          echo "AŞAĞIDAKİ BASE64 BLOĞUNU TAMAMEN KOPYALA (START ve END arası):"
+          echo "============= BASE64_START ============="
+          base64 -w0 keystore/erdin-upload.jks
+          echo ""
+          echo "============= BASE64_END ============="
