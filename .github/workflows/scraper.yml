@@ -1,4 +1,4 @@
-name: Generate Android Upload Key
+name: Generate Android Keystore
 
 on:
   workflow_dispatch:
@@ -8,16 +8,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Keystore üret ve Base64 çıktı ver
+      - name: Boş repo çek
+        uses: actions/checkout@v4
+
+      - name: Keystore üret ve Base64 olarak göster
         run: |
           set -e
+          mkdir -p keystore
 
-          # 🔐 Keystore bilgileri (istersen buradaki şifre/alias'ı değiştirirsin)
+          # 👉 ŞİFRE ve ALIAS BURADA
           STORE_PASS="Erdin123!"
           KEY_ALIAS="erdin_alias"
-          KEY_PASS="Erdin123!"  # KEY_PASS farklı olsun istersen burada değiştir
-
-          mkdir -p keystore
+          KEY_PASS="Erdin123!"  # istersen farklı yapabilirsin
 
           echo "🔐 Keystore üretiliyor..."
           keytool -genkeypair -v \
@@ -31,14 +33,13 @@ jobs:
             -dname "CN=Erdin, O=ErdinMedia, C=TR"
 
           echo ""
-          echo "================= İMZA BİLGİLERİ ================="
-          echo "ALIAS       : $KEY_ALIAS"
-          echo "STORE_PASS  : $STORE_PASS"
-          echo "KEY_PASS    : $KEY_PASS"
-          echo "==================================================="
+          echo "================= ALIAS / ŞİFRE ================="
+          echo "ALIAS         : $KEY_ALIAS"
+          echo "STORE_PASS    : $STORE_PASS"
+          echo "KEY_PASS      : $KEY_PASS"
+          echo "================================================="
           echo ""
-          echo "AŞAĞIDAKİ BASE64 BLOĞUNU TAMAMEN KOPYALA (START ve END arası):"
+          echo "ŞİMDİ BASE64 ÇIKIYOR, BUNU COMPLE KOPYALA (satır sonları dahil olabilir):"
           echo "============= BASE64_START ============="
-          base64 -w0 keystore/erdin-upload.jks
-          echo ""
+          base64 keystore/erdin-upload.jks
           echo "============= BASE64_END ============="
