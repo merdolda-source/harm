@@ -1,45 +1,35 @@
-name: Generate Android Keystore
+name: DiziPal Arşiv Güncelleyici
 
 on:
-  workflow_dispatch:
+  schedule:
+    # Her gün Türkiye saatiyle gece 03:00'da çalışır (UTC 00:00)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # İstersen GitHub üzerinden tek tıkla manuel başlatabilirsin
 
 jobs:
-  gen:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Boş repo çek
-        uses: actions/checkout@v4
+      - name: Depoyu Kontrol Et
+        uses: actions/checkout@v3
 
-      - name: Keystore üret ve Base64 olarak göster
+      - name: Python Kurulumu
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Bağımlılıkları Yükle
         run: |
-          set -e
-          mkdir -p keystore
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
 
-          # 👉 ŞİFRE ve ALIAS BURADA
-          STORE_PASS="Erdin123!"
-          KEY_ALIAS="erdin_alias"
-          KEY_PASS="Erdin123!"  # istersen farklı yapabilirsin
+      - name: Scripti Çalıştır
+        run: python dizipal_tara.py # Python dosyanın adının dizipal_tara.py olduğunu varsayıyorum
 
-          echo "🔐 Keystore üretiliyor..."
-          keytool -genkeypair -v \
-            -keystore keystore/erdin-upload.jks \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -alias "$KEY_ALIAS" \
-            -storepass "$STORE_PASS" \
-            -keypass "$KEY_PASS" \
-            -dname "CN=Erdin, O=ErdinMedia, C=TR"
-
-          echo ""
-          echo "================= ALIAS / ŞİFRE ================="
-          echo "ALIAS         : $KEY_ALIAS"
-          echo "STORE_PASS    : $STORE_PASS"
-          echo "KEY_PASS      : $KEY_PASS"
-          echo "================================================="
-          echo ""
-          echo "ŞİMDİ BASE64 ÇIKIYOR, BUNU COMPLE KOPYALA (satır sonları dahil olabilir):"
-          echo "============= BASE64_START ============="
-          base64 keystore/erdin-upload.jks
-          echo "============= BASE64_END ============="
+      - name: Güncel Dosyaları Kaydet
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add dizipal.html dizipal_tv.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🚀 Otomatik Güncelleme: $(date +'%d-%m-%Y %H:%M')" && git push)
