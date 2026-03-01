@@ -1,5 +1,4 @@
-# DiziPal - Tüm Sayfaları Çeken Versiyon (Cloudflare Korumalı)
-import cloudscraper # requests yerine bunu kullanıyoruz
+import cloudscraper
 from bs4 import BeautifulSoup
 import re
 import json
@@ -10,13 +9,9 @@ class DiziPal:
     def __init__(self):
         self.name = "DiziPal"
         self.main_url = "https://dizipal.bar"
-        # Cloudscraper, Cloudflare engellerini aşmak için otomatik ayar yapar
+        # Cloudflare aşmak için scraper oluştur
         self.scraper = cloudscraper.create_scraper(
-            browser={
-                'browser': 'chrome',
-                'platform': 'windows',
-                'desktop': True
-            }
+            browser={'browser': 'chrome', 'platform': 'windows', 'desktop': True}
         )
         
         self.kategoriler = {
@@ -50,14 +45,10 @@ class DiziPal:
     def get_soup(self, url):
         try:
             response = self.scraper.get(url, timeout=15)
-            if response.status_code != 200:
-                print(f"Hata: {response.status_code} - Site erişimi reddedildi.")
-                return None
+            if response.status_code != 200: return None
             response.encoding = 'utf-8'
             return BeautifulSoup(response.text, 'html.parser')
-        except Exception as e:
-            print(f"Bağlantı Hatası: {e}")
-            return None
+        except: return None
     
     def toplam_sayfa_bul(self, kategori_url):
         soup = self.get_soup(kategori_url)
@@ -66,83 +57,103 @@ class DiziPal:
         en_buyuk = 1
         for link in sayfalama:
             try:
-                sayi = int(link.text.strip())
-                if sayi > en_buyuk: en_buyuk = sayi
+                match = re.search(r'/page/(\d+)/', link.get('href', ''))
+                if match:
+                    num = int(match.group(1))
+                    if num > en_buyuk: en_buyuk = num
             except: pass
-        print(f"    Toplam {en_buyuk} sayfa bulundu")
         return en_buyuk
-    
-    def ana_sayfa(self, sayfa=1, kategori_url=None, kategori_adi=None):
-        url = kategori_url if sayfa == 1 else f"{kategori_url}page/{sayfa}/"
-        soup = self.get_soup(url)
-        if not soup: return []
-        sonuclar = []
-        for veri in soup.select("div.grid div.post-item, article"):
-            title_elem = veri.select_one("a")
-            if title_elem:
-                title = title_elem.get('title', '') or title_elem.text.strip()
-                href = title_elem.get('href', '')
-                if title and href:
-                    sonuclar.append({'kategori': kategori_adi, 'baslik': title, 'url': self.fix_url(href)})
-        return sonuclar
 
-    def _embed_link_al(self, soup):
-        iframe = soup.select_one("div.video-player-area iframe, div.responsive-player iframe, iframe")
-        if iframe:
-            src = iframe.get('src') or iframe.get('data-src')
-            if src: return self.fix_url(src)
-        return None
-
-    def _thumbnail_al(self, soup, html_text=None):
-        if html_text:
-            match = re.search(r'"thumbnailUrl":"(https:[^"]+)"', html_text)
-            if match: return match.group(1)
-        meta_img = soup.select_one("meta[property='og:image']")
-        return meta_img.get('content', '') if meta_img else None
-
-    def tum_filmleri_topla(self, max_sayfa_limiti=50):
-        print("🎬 DİZİPAL TARAMA BAŞLADI...")
+    def tum_filmleri_topla(self, max_sayfa_limiti=5):
         tum_filmler = {}
         film_id = 1
         for kategori_url, kategori_adi in self.kategoriler.items():
             toplam_sayfa = self.toplam_sayfa_bul(kategori_url)
             toplam_sayfa = min(toplam_sayfa, max_sayfa_limiti)
+            print(f"Taranan: {kategori_adi} ({toplam_sayfa} sayfa)")
+            
             for sayfa in range(1, toplam_sayfa + 1):
-                sonuclar = self.ana_sayfa(sayfa, kategori_url, kategori_adi)
-                if not sonuclar: break
-                for film in sonuclar:
-                    try:
-                        resp = self.scraper.get(film['url'], timeout=10)
-                        f_soup = BeautifulSoup(resp.text, 'html.parser')
-                        tum_filmler[str(film_id)] = {
-                            'isim': film['baslik'],
-                            'resim': self._thumbnail_al(f_soup, resp.text) or "",
-                            'link': film['url'],
-                            'embed': self._embed_link_al(f_soup) or "",
-                            'kategori': film['kategori']
-                        }
-                        film_id += 1
-                        print(".", end="", flush=True)
-                        time.sleep(0.5)
-                    except: print("X", end="")
+                url = kategori_url if sayfa == 1 else f"{kategori_url}page/{sayfa}/"
+                soup = self.get_soup(url)
+                if not soup: break
+                
+                for veri in soup.select("div.grid div.post-item, article"):
+                    a_tag = veri.select_one("a")
+                    if a_tag:
+                        film_url = self.fix_url(a_tag.get('href', ''))
+                        # Film detayına gir
+                        try:
+                            f_resp = self.scraper.get(film_url, timeout=10)
+                            f_soup = BeautifulSoup(f_resp.text, 'html.parser')
+                            
+                            # Embed bul
+                            embed = ""
+                            iframe = f_soup.select_one("iframe")
+                            if iframe: embed = self.fix_url(iframe.get('src') or iframe.get('data-src'))
+                            
+                            # Resim bul
+                            img = ""
+                            meta_img = f_soup.select_one("meta[property='og:image']")
+                            if meta_img: img = meta_img.get('content', '')
+
+                            tum_filmler[str(film_id)] = {
+                                'isim': a_tag.get('title', '') or a_tag.text.strip(),
+                                'resim': img,
+                                'link': film_url,
+                                'embed': embed,
+                                'kategori': kategori_adi
+                            }
+                            film_id += 1
+                            print(".", end="", flush=True)
+                            time.sleep(0.3)
+                        except: continue
         return tum_filmler
 
     def html_olustur(self, filmler):
         filmler_str = json.dumps(filmler, ensure_ascii=False)
-        # HTML şablonu buraya gelecek (Senin paylaştığın şablonu aynen koruyoruz)
-        # ... (Senin paylaştığın HTML şablon kodun burada olacak) ...
-        # KISA KESMEK İÇİN YAZMIYORUM AMA DOSYANDA O BÖLÜMÜ KORU
-        
+        html_content = f"""<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <title>DiziPal TV Arşiv</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {{ background: #0a0c0f; color: #fff; font-family: sans-serif; }}
+        .film-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 20px; }}
+        .film-card {{ background: #15161a; border-radius: 10px; overflow: hidden; border: 2px solid #323442; cursor: pointer; position: relative; }}
+        .film-card:focus {{ border-color: #ffd700; transform: scale(1.05); outline: none; }}
+        .film-card img {{ width: 100%; aspect-ratio: 2/3; object-fit: cover; }}
+        .film-title {{ padding: 10px; font-size: 14px; text-align: center; font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <div class="film-grid" id="grid"></div>
+    <script>
+        var data = {filmler_str};
+        var grid = document.getElementById('grid');
+        Object.values(data).forEach(film => {{
+            var card = document.createElement('div');
+            card.className = 'film-card';
+            card.tabIndex = 0;
+            card.innerHTML = '<img src="' + film.resim + '"><div class="film-title">' + film.isim + '</div>';
+            card.onclick = () => window.open(film.embed || film.link, '_blank');
+            grid.appendChild(card);
+        }});
+    </script>
+</body>
+</html>"""
         with open('dizipal.html', 'w', encoding='utf-8') as f:
-            f.write("HTML_SABLONUN_BURAYA_GELECEK") # Burayı senin HTML yapınla doldur
-        print(f"\n✅ {len(filmler)} film kaydedildi.")
+            f.write(html_content)
+        with open('dizipal_tv.html', 'w', encoding='utf-8') as f:
+            f.write(html_content)
 
 if __name__ == "__main__":
-    dizi = DiziPal()
-    filmler = dizi.tum_filmleri_topla(max_sayfa_limiti=5) # Test için limiti düşük tutabilirsin
-    if filmler:
-        dizi.html_olustur(filmler)
+    bot = DiziPal()
+    # GitHub Action'ın hızlı bitmesi için limiti düşük tutuyorum (max_sayfa_limiti=2 gibi)
+    veriler = bot.tum_filmleri_topla(max_sayfa_limiti=2)
+    if veriler:
+        bot.html_olustur(veriler)
     else:
-        # Action hata vermesin diye boş dosya oluştur
+        # Hata almamak için boş dosya oluştur
         open('dizipal.html', 'a').close()
-        print("❌ Hiç film bulunamadı!")
