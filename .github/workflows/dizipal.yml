@@ -1,54 +1,41 @@
 name: DiziPal Otomatik Güncelleme
 
+permissions:
+  contents: write
+
 on:
   schedule:
-    # Her 6 saatte bir çalışır (UTC saat diliminde)
     - cron: '0 */6 * * *'
-  # Manuel tetikleme için
   workflow_dispatch:
 
 jobs:
   update-dizipal:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Repoyu çek
       uses: actions/checkout@v3
-      
+
     - name: Python kurulumu
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-        
+
     - name: Gereksinimleri yükle
       run: |
         python -m pip install --upgrade pip
         pip install requests beautifulsoup4
-        
+
     - name: DiziPal botunu çalıştır
-      run: |
-        python dizipal.py
+      run: python dizipal.py
       continue-on-error: true
-      
-    - name: HTML dosyalarını kontrol et
-      run: |
-        ls -la dizipal*.html
-        echo "HTML dosyaları oluşturuldu mu?"
-        
+
     - name: Değişiklikleri commit et
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # Değişiklik varsa ekle
-        git add dizipal.html dizipal_tv.html *.json 2>/dev/null || true
-        
-        # Commit mesajına tarih ekle
+
+        git add .
         git commit -m "🤖 Otomatik güncelleme: $(date +'%d.%m.%Y %H:%M')" || echo "Değişiklik yok"
-        
-    - name: GitHub'a push et
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
-        force: true
+
+        git push
