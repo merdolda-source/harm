@@ -1,46 +1,38 @@
-name: DiziPal Arşiv Güncelleyici
+name: Selcuk Domain Update
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
   workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions: # Yazma iznini buradan garantiye alıyoruz
-      contents: write
-
     steps:
-      - name: Depoyu Kontrol Et
-        uses: actions/checkout@v3
-
-      - name: Python Kurulumu
-        uses: actions/setup-python@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          python-version: '3.10'
+          persist-credentials: true
 
-      - name: Bağımlılıkları Yükle
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run Script
+        run: python selcuk-domain.py
+
+      - name: Commit and Push Changes
         run: |
-          python -m pip install --upgrade pip
-          pip install requests beautifulsoup4 cloudscraper
-
-      - name: Scripti Çalıştır
-        run: python dizipal_tara.py
-
-      - name: Güncel Dosyaları Kaydet
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add Slck-player.txt
+          # Eğer dosya içeriği aynıysa hata vermeden devam etmesini sağlar
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update player link" && git push)
           
-          # Dosyalar varsa ekle, yoksa hata verme
-          git add dizipal.html || true
-          git add dizipal_tv.html || true
-          
-          # Değişiklik varsa commit yap ve pushla
-          if git diff --staged --quiet; then
-            echo "Değişiklik yok, pushlanmıyor."
-          else
-            git commit -m "🚀 Otomatik Güncelleme: $(date +'%d-%m-%Y %H:%M')"
-            git push
-          fi
